@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Inspection Quotidienne</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#1a1a2e;min-height:100vh;}
+
+/* Palette : rouge/bleu/gris */
+:root{
+  --bleu:    #3A7BD5;
+  --bleu-l:  #e8f0fd;
+  --bleu-d:  #1a4fa0;
+  --rouge:   #D53A3A;
+  --rouge-l: #fde8e8;
+  --gris-bg: #f0f2f5;
+  --gris-card:#ffffff;
+  --gris-brd:#d8dde6;
+  --gris-hdr:#2d3142;
+  --texte:   #1a1d23;
+  --texte-l: #5a6070;
+}
+
+/* Header */
+.hdr{
+  background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);
+  padding:18px 16px 14px;
+  border-bottom:3px solid var(--bleu);
+}
+.hdr h1{font-size:17px;font-weight:700;color:#fff;letter-spacing:.3px;}
+.hdr p{font-size:11px;color:rgba(255,255,255,.45);margin-top:3px;}
+
+/* Onglets équipements — gros, visuels */
+.tabs-wrap{
+  background:#16213e;
+  overflow-x:auto;
+  white-space:nowrap;
+  -webkit-overflow-scrolling:touch;
+  border-bottom:3px solid var(--bleu);
+  padding:8px 6px 0;
+  display:flex;
+  gap:6px;
+}
+.tab{
+  display:inline-flex;
+  flex-direction:column;
+  align-items:center;
+  padding:10px 14px 8px;
+  cursor:pointer;
+  border-radius:8px 8px 0 0;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.1);
+  border-bottom:none;
+  transition:all .15s;
+  min-width:80px;
+  flex-shrink:0;
+}
+.tab .eq-icon{font-size:28px;line-height:1;margin-bottom:4px;}
+.tab .eq-name{font-size:10px;font-weight:700;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.8px;text-align:center;line-height:1.3;}
+.tab.active{background:var(--gris-bg);border-color:var(--bleu);}
+.tab.active .eq-name{color:var(--bleu-d);}
+.tab:hover:not(.active){background:rgba(255,255,255,.12);}
+
+/* Contenu */
+.wrap{max-width:680px;margin:0 auto;padding:14px 12px;background:var(--gris-bg);min-height:calc(100vh - 130px);}
+
+/* Cartes */
+.card{background:var(--gris-card);border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.08);overflow:hidden;margin-bottom:14px;border:1px solid var(--gris-brd);}
+.card-hdr{padding:11px 16px;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;display:flex;align-items:center;gap:8px;}
+.hdr-bleu{background:linear-gradient(135deg,var(--bleu-d),var(--bleu));color:#fff;}
+.hdr-rouge{background:linear-gradient(135deg,#a02020,var(--rouge));color:#fff;}
+.hdr-gris{background:var(--gris-hdr);color:#fff;}
+
+/* Champs */
+.card-body{padding:14px;}
+.field{margin-bottom:11px;}
+.field label{font-size:10px;font-weight:700;color:var(--bleu-d);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px;}
+.field input,.field select{width:100%;border:1.5px solid var(--gris-brd);border-radius:6px;padding:10px 12px;font-size:14px;font-family:inherit;color:var(--texte);outline:none;background:#fafbfc;}
+.field input:focus,.field select:focus{border-color:var(--bleu);background:#fff;}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.fg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+
+/* TABLEAU D'INSPECTION — layout fixe */
+.insp-wrap{overflow-x:auto;}
+table.insp{width:100%;border-collapse:collapse;table-layout:fixed;}
+table.insp colgroup col.c-lbl{width:auto;}
+table.insp colgroup col.c-day{width:44px;}
+table.insp thead tr{background:var(--gris-hdr);}
+table.insp thead th{
+  padding:9px 0;
+  color:rgba(255,255,255,.85);
+  font-size:11px;
+  font-weight:700;
+  text-align:center;
+  border-right:1px solid rgba(255,255,255,.1);
+}
+table.insp thead th.th-lbl{
+  text-align:left;
+  padding-left:12px;
+  font-size:10px;
+  letter-spacing:1px;
+  color:rgba(255,255,255,.6);
+}
+table.insp tbody tr{border-bottom:1px solid #edf0f5;}
+table.insp tbody tr:nth-child(even){background:#f7f9fc;}
+table.insp tbody td.td-lbl{
+  padding:10px 8px 10px 12px;
+  font-size:13px;
+  color:var(--texte);
+  line-height:1.4;
+  vertical-align:middle;
+}
+table.insp tbody td.td-chk{
+  text-align:center;
+  vertical-align:middle;
+  padding:6px 0;
+  border-right:1px solid #edf0f5;
+}
+
+/* Case à cocher — 2 états : vide ou ✅ */
+.chk{
+  width:34px;
+  height:34px;
+  border-radius:7px;
+  border:2px solid #ccd3e0;
+  background:#fff;
+  cursor:pointer;
+  font-size:18px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  -webkit-tap-highlight-color:transparent;
+  transition:all .12s;
+  user-select:none;
+}
+.chk.ok{
+  background:linear-gradient(135deg,#27ae60,#2ecc71);
+  border-color:#27ae60;
+  color:#fff;
+  box-shadow:0 2px 6px rgba(39,174,96,.35);
+}
+.chk.nok{
+  background:linear-gradient(135deg,#c0392b,var(--rouge));
+  border-color:#c0392b;
+  color:#fff;
+  box-shadow:0 2px 6px rgba(192,57,43,.35);
+}
+
+/* Non-conformité */
+.nonconf{display:none;}
+.nonconf.show{display:block;}
+
+/* Compteurs */
+.compteurs{display:flex;gap:8px;margin-top:12px;}
+.cpt{flex:1;text-align:center;padding:9px 4px;border-radius:8px;font-size:12px;font-weight:700;}
+.cpt-ok{background:#e8f8ef;color:#1a6b3a;border:1.5px solid #a8dbb8;}
+.cpt-nok{background:var(--rouge-l);color:#8b1a1a;border:1.5px solid #f0b0b0;}
+
+/* Initiales semaine */
+.initiales{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:6px;}
+.ini-cell{text-align:center;}
+.ini-cell .jour{font-size:10px;font-weight:700;color:var(--bleu-d);margin-bottom:4px;}
+.ini-cell input{width:100%;border:1.5px solid var(--gris-brd);border-radius:6px;padding:8px 4px;text-align:center;font-size:14px;font-family:inherit;background:#fafbfc;outline:none;}
+.ini-cell input:focus{border-color:var(--bleu);background:#fff;}
+
+/* Signature */
+canvas.sig{border:2px solid var(--gris-brd);border-radius:8px;width:100%;background:#fff;touch-action:none;display:block;}
+.sig-note{font-size:11px;color:var(--texte-l);margin-bottom:6px;}
+.btn-clear{background:#f0f2f5;border:1.5px solid var(--gris-brd);border-radius:6px;padding:7px 14px;font-size:12px;font-weight:700;color:#555;cursor:pointer;margin-top:6px;}
+
+/* Bouton soumettre */
+.btn-sub{
+  width:100%;
+  background:linear-gradient(135deg,var(--bleu-d),var(--bleu));
+  color:#fff;border:none;border-radius:8px;
+  padding:16px;font-size:16px;font-weight:700;
+  cursor:pointer;margin-top:12px;letter-spacing:.3px;
+  box-shadow:0 4px 12px rgba(58,123,213,.35);
+}
+.btn-sub:active{transform:scale(.98);}
+.btn-sub:disabled{background:#aaa;box-shadow:none;cursor:not-allowed;}
+
+/* Alertes */
+.alerte{border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:13px;line-height:1.6;display:none;}
+.alerte.show{display:block;}
+.al-ok{background:#e8f8ef;border:1.5px solid #27ae60;color:#1a6b3a;}
+.al-err{background:var(--rouge-l);border:1.5px solid var(--rouge);color:#7b1a1a;}
+
+/* Historique */
+.hist-item{border:1px solid var(--gris-brd);border-radius:8px;padding:10px 12px;margin-bottom:8px;background:#fafbfc;}
+.hist-top{display:flex;justify-content:space-between;align-items:center;}
+.hist-date{font-size:12px;font-weight:700;color:var(--texte);}
+.hist-det{font-size:11px;color:var(--texte-l);margin-top:4px;}
+
+/* Panels */
+.eq-panel{display:none;}
+.eq-panel.active{display:block;}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--gris-hdr);color:#fff;padding:10px 22px;border-radius:20px;font-size:13px;font-weight:700;z-index:999;display:none;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.3);}
+.toast.show{display:block;}
+
+/* Note */
+.note{background:#fff8e8;border:1px solid #f0d080;border-left:4px solid #f0a020;border-radius:0 6px 6px 0;padding:9px 12px;margin-bottom:12px;font-size:12px;color:#7a5010;line-height:1.5;}
+
+@media(max-width:400px){
+  .chk{width:30px;height:30px;font-size:16px;}
+  .tab{min-width:64px;padding:8px 8px 6px;}
+  .tab .eq-icon{font-size:22px;}
+  .tab .eq-name{font-size:9px;}
+  .fg2{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <h1>🔍 Inspection quotidienne — Appareils de levage</h1>
+  <p>Semaine lundi → vendredi · Soumission au coordonnateur SST</p>
+</div>
+
+<!-- ONGLETS VISUELS -->
+<div class="tabs-wrap">
+  <div class="tab active" onclick="showEq(0)">
+    <div class="eq-icon">🏗</div>
+    <div class="eq-name">Nacelle<br>PEMP</div>
+  </div>
+  <div class="tab" onclick="showEq(1)">
+    <div class="eq-icon">🚜</div>
+    <div class="eq-name">Chariot<br>élévateur</div>
+  </div>
+  <div class="tab" onclick="showEq(2)">
+    <div class="eq-icon">⛓</div>
+    <div class="eq-name">Élingues<br>levage</div>
+  </div>
+  <div class="tab" onclick="showEq(3)">
+    <div class="eq-icon">🪜</div>
+    <div class="eq-name">Échafau-<br>dage</div>
+  </div>
+  <div class="tab" onclick="showEq(4)">
+    <div class="eq-icon">⚙️</div>
+    <div class="eq-name">Autre<br>équip.</div>
+  </div>
+</div>
+
+<div class="wrap">
+
+<div class="alerte al-ok" id="alertOk">✅ <strong>Inspection soumise!</strong> Courriel envoyé au CoSS et sauvegardé localement.</div>
+<div class="alerte al-err" id="alertErr">⚠️ <strong>Erreur d'envoi.</strong> Inspection sauvegardée localement. Vérifiez votre connexion.</div>
+
+<!-- ══════════ NACELLE / PEMP ══════════ -->
+<div class="eq-panel active" id="eq0">
+  <div class="note">⚠️ Effectuer la vérification dans un endroit stable et sécuritaire avant utilisation.</div>
+  <div class="card">
+    <div class="card-hdr hdr-gris">📋 Informations — Nacelle / PEMP</div>
+    <div class="card-body">
+      <div class="fg2">
+        <div class="field"><label>Semaine du</label><input type="date" id="e0_du"></div>
+        <div class="field"><label>Au</label><input type="date" id="e0_au"></div>
+      </div>
+      <div class="fg2">
+        <div class="field"><label>Marque</label><input type="text" id="e0_marque" placeholder="Ex: JLG, Genie, Skyjack"></div>
+        <div class="field"><label>Modèle</label><input type="text" id="e0_modele" placeholder="Ex: 3246ES"></div>
+      </div>
+      <div class="fg2">
+        <div class="field"><label>Nom du travailleur</label><input type="text" id="e0_trav" placeholder="Nom complet"></div>
+        <div class="field"><label>Sous-traitant</label><input type="text" id="e0_st" placeholder="Entreprise"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hdr hdr-bleu">👁 Inspection visuelle</div>
+    <div class="insp-wrap">
+      <table class="insp" id="t0_vis">
+        <colgroup><col class="c-lbl"><col class="c-day"><col class="c-day"><col class="c-day"><col class="c-day"><col class="c-day"></colgroup>
+        <thead><tr><th class="th-lbl">Point d'inspection</th><th>L</th><th>M</th><th>M</th><th>J</th><th>V</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hdr hdr-bleu">▶ Inspection en marche</div>
+    <div class="insp-wrap">
+      <table class="insp" id="t0_march">
+        <colgroup><col class="c-lbl"><col class="c-day"><col class="c-day"><col class="c-day"><col class="c-day"><col class="c-day"></colgroup>
+        <thead><tr><th class="th-lbl">Point d'inspection</th><th>L</th><th>M</th><th>M</th><th>J</th><th>V</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card nonconf" id="nc0">
+    <div class="card-hdr hdr-rouge">⚠️ Non-conformités détectées</div>
+    <div class="card-body">
+      <div class="field"><label>Description et mesures correctives</label>
+        <textarea id="e0_nc" style="width:100%;border:1.5px solid #d8dde6;border-radius:6px;padding:10px;font-size:13px;font-family:inherit;min-height:70px;resize:vertical;outline:none;background:#fafbfc;" placeholder="Décrivez les non-conformités et les actions prises..."></textarea>
+      </div>
+      <div class="fg2">
+        <div class="field"><label>Équipement hors service?</label>
+          <select id="e0_hs"><option value="non">Non — travaux continuent</option><option value="oui">Oui — hors service</option></select>
+        </div>
+        <div class="field"><label>Superviseur avisé</label><input type="text" id="e0_sup" placeholder="Nom du superviseur"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hdr hdr-gris">✍ Initiales et signature</div>
+    <div class="card-body">
+      <label style="font-size:10px;font-weight:700;color:var(--bleu-d);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px;">Initiales — travailleur qui inspecte chaque jour</label>
+      <div class="initiales">
+        <div class="ini-cell"><div class="jour">Lundi</div><input type="text" id="e0_i0" maxlength="4" placeholder="___"></div>
+        <div class="ini-cell"><div class="jour">Mardi</div><input type="text" id="e0_i1" maxlength="4" placeholder="___"></div>
+        <div class="ini-cell"><div class="jour">Mercredi</div><input type="text" id="e0_i2" maxlength="4" placeholder="___"></div>
+        <div class="ini-cell"><div class="jour">Jeudi</div><input type="text" id="e0_i3" maxlength="4" placeholder="___"></div>
+        <div class="ini-cell"><div class="jour">Vendredi</div><input type="text" id="e0_i4" maxlength="4" placeholder="___"></div>
+      </div>
+      <div style="margin-top:14px;"><p class="sig-note">Signature du responsable :</p>
+        <canvas class="sig" id="e0_sig" height="110"></canvas>
+        <button class="btn-clear" onclick="clearSig('e0_sig')">🗑 Effacer</button>
+      </div>
+      <div class="compteurs">
+        <div class="cpt cpt-ok" id="e0_ok">✅ 0 OK</div>
+        <div class="cpt cpt-nok" id="e0_nok">❌ 0 NOK</div>
+      </div>
+      <button class="btn-sub" onclick="soumettre(0)">📤 Soumettre l'inspection</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ CHARIOT ══════════ -->
+<div class="eq-panel" id="eq1">
+  <div class="card">
+    <div class="card-hdr hdr-gris">📋 Informations — Chariot élévateur</div>
+    <div class="card-body">
+      <div class="fg2">
+        <div class="field"><label>Semaine du</label><input type="date" id="e1_du"></div>
+        <div class="field"><label>Au</label><input type="date" id="e1_au"></div>
+      </div>
+      <div class="fg2">
+        <div class="field"><label>Marque / Modèle</label><input type="text" id="e1_marque" placeholder="Ex: Toyota, Linde"></div>
+        <div class="field"><label>No de série</label><input type="text" id="e1_serial" placeholder="No série"></div>
+      </div>
+      <div class="fg2">
+        <div class="field"><label>Nom du travailleur</label><input type="text" id="e1_trav" placeholder="Nom complet"></div>
+        <div class="field"><label>Sous-traitant</label><input type="text" id="e1_st" placeholder="Entreprise"></div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr hdr-bleu">👁 Points d'inspection</div>
+    <div class="insp-wrap">
+      <table class="insp" id="t1">
+        <colgroup><col class="c-lbl"><col class="c-day"><col class="c-day"><col class="c-day"><col class="c-day"><col class="c-day"></colgroup>
+        <thead><tr><th class="th-lbl">Point d'inspection</th><th>L</th><th>M</th><th>M</th><th>J</th><th>V</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card nonconf" id="nc1">
+    <div class="card-hdr hdr-rouge">⚠️ Non-conformités</div>
+    <div class="card-body">
+      <div class="field"><label>Description et mesures correctives</label>
+        <textarea id="e1_nc" style="width:100%;border:1.5px solid #d8dde6;border-radius:6px;padding:10px;font-size:13px;font-family:inherit;min-height:70px;resize:vertical;outline:none;background:#fafbfc;" placeholder="Décrivez..."></textarea>
+      </div>
+      <div class="fg2">
+        <div class="field"><label>Hors service?</label><select id="e1_hs"><option value="non">Non</option><option value="oui">Oui</option></select></div>
+        <div class="field"><label>Superviseur avisé</label><input type="text" id="e1_sup" placeholder="Nom"></div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr hdr-gris">✍ Initiales et signature</div>
+    <div class="card-body">
+      <div class="initiales">
+        <div class="ini-cell"><div class="jour">Lundi</div><input type="text" id="e1_i0" maxlength="4" placeholder="___"></div>
+        <div class="ini-cell"><div class="jour">Mardi</div><input type="text" id="e1_i1" maxlength="4" placeholder="___"></div>
+        <div class="ini-cell"><div class="jour">Mercredi</div><input type="text" id="e1_i2" maxlength="4" placeholder="___"></div>
+        <div class="ini-cell"><div class="jour">Jeudi</div><input type="text" id="e1_i3" maxlength="4" placeholder="___"></div>
+        <div class="ini-cell"><div class="jour">Vendredi</div><input type="text" id="e1_i4" maxlength="4" placeholder="___"></div>
+      </div>
+      <div style="margin-top:14px;"><p class="sig-note">Signature :</p>
+        <canvas class="sig" id="e1_sig" height="110"></canvas>
+        <button class="btn-clear" onclick="clearSig('e1_sig')">🗑 Effacer</button>
+      </div>
+      <div class="compteurs">
+        <div class="cpt cpt-ok" id="e1_ok">✅ 0 OK</div>
+        <div class="cpt cpt-nok" id="e1_nok">❌ 0 NOK</div>
+      </div>
+      <button class="btn-sub" onclick="soumettre(1)">📤 Soumettre l'inspection</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ ÉLINGUES ══════════ -->
+<div class="eq-panel" id="eq2">
+  <div class="card">
+    <div class="card-hdr hdr-gris">📋 Informations — Élingues / Levage</div>
+    <div class="card-body">
+      <div class="fg2">
+        <div class="field"><label>Semaine du</label><input type="date" id="e2_du"></div>
+        <div class="field"><label>Au</label><input type="date" id="e2_au"></div>
+      </div>
+      <div class="fg2">
+        <div class="field"><label>Nom du travailleur</label><input type="text" id="e2_trav" placeholder="Nom complet"></div>
+        <div class="field"><label>Sous-traitant</label><input type="text" id="e2_st" placeholder="Entreprise"></div>
+      </div>
+      <div class="field"><label>Type</label>
+        <select id="e2_type"><option>Chaîne</option><option>Câble acier</option><option>Sangle textile</option><option>Manille</option><option>Crochet</option><option>Autre</option></select>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr hdr-bleu">👁 Points d'inspection</div>
+    <div class="insp-wrap">
+      <table class="insp" id="t2">
+        <colgroup><col class="c-lbl"><col class="c-day"><col class="c-day"><col class="c-day"><col class="c-day"><col class="c-day"></colgroup>
+        <thead><tr><th class="th-lbl">Point d'inspection</th><th>L</th><th>M</th><th>M</th><th>J</th><th>V</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card nonconf" id="nc2">
+    <div class="card-hdr hdr-rouge">⚠️ Non-conformités</div>
+    <div class="card-body">
+      <div class="field"><label>Description et mesures correctives</label>
+        <textarea id="e2_nc" style="width:100%;border:1.5px solid #d8dde6;border-radius:6px;padding:10px;font-size:13px;font-family:inherit;min-height:70px;resize:vertical;outline:none;background:#fafbfc;" placeholder="Décrivez..."></textarea>
+      </div>
+      <div class="field"><label>Élingue retirée du service?</label>
+        <select id="e2_hs"><option value="non">Non</option><option value="oui">Oui — retirée et identifiée</option></select>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr hdr-gris">✍ Initiales et signature</div>
+    <div class="card-body">
+      <div class="initiales">
+        <div class="ini-cell"><div class="jour">Lundi</div><input type="text" id="e2_i0" maxlength="4" placeholder="___"></div>
+        <div class="ini-cell"><div class="jour">Mardi</div><input type="text" id="e2_i1" maxlength="4" placeholder="___"></div>
+        <div class="ini-cell"><div class="jour">Mercredi</div><input type="text" id="e2_i2" maxlength="4" placeholder="___"></div>
+        <div class="ini-cell"><div class="jour">Jeudi</div><input type="text" id="e2_i3" maxlength="4" placeholder="___"></div>
+        <div class="ini-cell"><div class="jour">Vendredi</div><input type="text" id="e2_i4" maxlength="4" placeholder="___"></div>
+      </div>
+      <div style="margin-top:14px;"><p class="sig-note">Signature :</p>
+        <canvas class="sig" id="e2_sig" height="110"></canvas>
+        <button class="btn-clear" onclick="clearSig('e2_sig')">🗑 Effacer</button>
+      </div>
+      <div class="compteurs">
+        <div class="cpt cpt-ok" id="e2_ok">✅ 0 OK</div>
+        <div class="cpt cpt-nok" id="e2_nok">❌ 0 NOK</div>
+      </div>
+      <button class="btn-sub" onclick="soumettre(2)">📤 Soumettre l'inspection</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ ÉCHAFAUDAGE ══════════ -->
+<div class="eq-panel" id="eq3">
+  <div class="card">
+    <div class="card-hdr hdr-gris">📋 Informations — Échafaudage</div>
+    <div class="card-body">
+      <div class="fg2">
+        <div class="field"><label>Semaine du</label><input type="date" id="e3_du"></div>
+        <div class="field"><label>Au</label><input type="date" id="e3_au"></div>
+      </div>
+      <div class="fg2">
+        <div class="field"><label>Nom du travailleur</label><input type="text" id="e3_trav" placeholder="Nom complet"></div>
+        <div class="field"><label>Sous-traitant</label><input type="text" id="e3_st" placeholder="Entreprise"></div>
+      </div>
+      <div class="field"><label>Localisation sur le chantier</label><input type="text" id="e3_loc" placeholder="Ex: Façade nord, niveau 2"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr hdr-bleu">👁 Points d'inspection</div>
+    <div class="insp-wrap">
+      <table class="insp" id="t3">
+        <colgroup><col class="c-lbl"><col class="c-day"><col class="c-day"><col class="c-day"><col class="c-day"><col class="c-day"></colgroup>
+        <thead><tr><th class="th-lbl">Point d'inspection</th><th>L</th><th>M</th><th>M</th><th>J</th><th>V</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card nonconf" id="nc3">
+    <div class="card-hdr hdr-rouge">⚠️ Non-conformités</div>
+    <div class="card-body">
+      <div class="field"><label>Description et mesures correctives</label>
+        <textarea id="e3_nc" style="width:100%;border:1.5px solid #d8dde6;border-radius:6px;padding:10px;font-size:13px;font-family:inherit;min-height:70px;resize:vertical;outline:none;background:#fafbfc;" placeholder="Décrivez..."></textarea>
+      </div>
+      <div class="field"><label>Échafaudage condamné?</label>
+        <select id="e3_hs"><option value="non">Non</option><option value="oui">Oui — accès interdit</option></select>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr hdr-gris">✍ Initiales et signature</div>
+    <div class="card-body">
+      <div class="initiales">
+        <div class="ini-cell"><div class="jour">Lundi</div><input type="text" id="e3_i0" maxlength="4" placeholder="___"></div>
+        <div class="ini-cell"><div class="jour">Mardi</div><input type="text" id="e3_i1" maxlength="4" placeholder="___"></div>
+        <div class="ini-cell"><div class="jour">Mercredi</div><input type="text" id="e3_i2" maxlength="4" placeholder="___"></div>
+        <div class="ini-cell"><div class="jour">Jeudi</div><input type="text" id="e3_i3" maxlength="4" placeholder="___"></div>
+        <div class="ini-cell"><div class="jour">Vendredi</div><input type="text" id="e3_i4" maxlength="4" placeholder="___"></div>
+      </div>
+      <div style="margin-top:14px;"><p class="sig-note">Signature :</p>
+        <canvas class="sig" id="e3_sig" height="110"></canvas>
+        <button class="btn-clear" onclick="clearSig('e3_sig')">🗑 Effacer</button>
+      </div>
+      <div class="compteurs">
+        <div class="cpt cpt-ok" id="e3_ok">✅ 0 OK</div>
+        <div class="cpt cpt-nok" id="e3_nok">❌ 0 NOK</div>
+      </div>
+      <button class="btn-sub" onclick="soumettre(3)">📤 Soumettre l'inspection</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ AUTRE ══════════ -->
+<div class="eq-panel" id="eq4">
+  <div class="card">
+    <div class="card-hdr hdr-gris">📋 Autre équipement</div>
+    <div class="card-body">
+      <div class="fg2">
+        <div class="field"><label>Semaine du</label><input type="date" id="e4_du"></div>
+        <div class="field"><label>Au</label><input type="date" id="e4_au"></div>
+      </div>
+      <div class="fg2">
+        <div class="field"><label>Nom du travailleur</label><input type="text" id="e4_trav" placeholder="Nom complet"></div>
+        <div class="field"><label>Sous-traitant</label><input type="text" id="e4_st" placeholder="Entreprise"></div>
+      </div>
+      <div class="fg2">
+        <div class="field"><label>Nom de l'équipement</label><input type="text" id="e4_eq" placeholder="Décrivez l'équipement"></div>
+        <div class="field"><label>No de série</label><input type="text" id="e4_serial" placeholder="No série"></div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr hdr-bleu">👁 Points d'inspection</div>
+    <div class="insp-wrap">
+      <table class="insp" id="t4">
+        <colgroup><col class="c-lbl"><col class="c-day"><col class="c-day"><col class="c-day"><col class="c-day"><col class="c-day"></colgroup>
+        <thead><tr><th class="th-lbl">Point d'inspection</th><th>L</th><th>M</th><th>M</th><th>J</th><th>V</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div style="padding:10px 14px;">
+      <button onclick="ajouterPoint(4)" style="width:100%;padding:10px;border:2px dashed var(--bleu);border-radius:6px;background:var(--bleu-l);color:var(--bleu-d);font-size:13px;font-weight:700;cursor:pointer;">+ Ajouter un point</button>
+    </div>
+  </div>
+  <div class="card nonconf" id="nc4">
+    <div class="card-hdr hdr-rouge">⚠️ Non-conformités</div>
+    <div class="card-body">
+      <div class="field"><label>Description et mesures correctives</label>
+        <textarea id="e4_nc" style="width:100%;border:1.5px solid #d8dde6;border-radius:6px;padding:10px;font-size:13px;font-family:inherit;min-height:70px;resize:vertical;outline:none;background:#fafbfc;" placeholder="Décrivez..."></textarea>
+      </div>
+      <div class="fg2">
+        <div class="field"><label>Hors service?</label><select id="e4_hs"><option value="non">Non</option><option value="oui">Oui</option></select></div>
+        <div class="field"><label>Superviseur avisé</label><input type="text" id="e4_sup" placeholder="Nom"></div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr hdr-gris">✍ Initiales et signature</div>
+    <div class="card-body">
+      <div class="initiales">
+        <div class="ini-cell"><div class="jour">Lundi</div><input type="text" id="e4_i0" maxlength="4" placeholder="___"></div>
+        <div class="ini-cell"><div class="jour">Mardi</div><input type="text" id="e4_i1" maxlength="4" placeholder="___"></div>
+        <div class="ini-cell"><div class="jour">Mercredi</div><input type="text" id="e4_i2" maxlength="4" placeholder="___"></div>
+        <div class="ini-cell"><div class="jour">Jeudi</div><input type="text" id="e4_i3" maxlength="4" placeholder="___"></div>
+        <div class="ini-cell"><div class="jour">Vendredi</div><input type="text" id="e4_i4" maxlength="4" placeholder="___"></div>
+      </div>
+      <div style="margin-top:14px;"><p class="sig-note">Signature :</p>
+        <canvas class="sig" id="e4_sig" height="110"></canvas>
+        <button class="btn-clear" onclick="clearSig('e4_sig')">🗑 Effacer</button>
+      </div>
+      <div class="compteurs">
+        <div class="cpt cpt-ok" id="e4_ok">✅ 0 OK</div>
+        <div class="cpt cpt-nok" id="e4_nok">❌ 0 NOK</div>
+      </div>
+      <button class="btn-sub" onclick="soumettre(4)">📤 Soumettre l'inspection</button>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORIQUE -->
+<div class="card">
+  <div class="card-hdr hdr-gris">📋 Historique local</div>
+  <div class="card-body" id="historique"><p style="font-size:12px;color:#888;">Aucune inspection soumise.</p></div>
+</div>
+
+</div><!-- /wrap -->
+<div class="toast" id="toast"></div>
+
+<script>
+var EQ      = ["Nacelle / PEMP", "Chariot élévateur", "Élingues / Levage", "Échafaudage", "Autre équipement"];
+var VIS     = ["Plancher propre et dégagé", "Système antichute conforme — point d'ancrage accessible, harnais disponible", "Garde-corps conformes et en bon état", "Boulons et écrous en bon état — aucun jeu apparent", "Niveau de liquide selon les recommandations du fabricant", "Jantes et boulons de roues en bon état", "Pneus en bon état — pression adéquate", "Vanne de descente d'urgence clairement identifiée et accessible", "Composants électriques, hydrauliques et pneumatiques en bonne condition", "Composantes mobiles protégées — gardes en place", "Structure en bon état — aucune déformation, fissure ou corrosion", "Plaque signalétique lisible et complète — charge max, hauteur max", "Commandes identifiées — bouton d'arrêt d'urgence fonctionnel", "Extincteur présent si requis — stabilisateurs en bon état"];
+var MARCH   = ["Avertisseur sonore fonctionnel", "Phares et avertisseurs lumineux fonctionnels", "Commandes de fonctionnement répondent correctement", "Commandes d'urgence au sol et en nacelle répondent bien", "Barrière de plateforme facile à enclencher", "Vitesse de descente contrôlée — pas de chute libre", "Freinage d'urgence et frein de stationnement fonctionnels", "Indicateur de charge de la batterie fonctionnel", "Aucune fuite de liquide — huile, hydraulique, carburant"];
+var CHARIOT = ["Fourches en bon état — aucune déformation ni usure excessive", "Mât de levage en bon état — chaînes lubrifiées, sans jeu excessif", "Pneus en bon état — fixation des roues serrée", "Niveaux adéquats — huile moteur, hydraulique, refroidissement", "Frein de service et frein de stationnement fonctionnels", "Direction répond correctement — pas de jeu excessif", "Avertisseur sonore et alarme de recul fonctionnels", "Phares, feux de recul et gyrophare fonctionnels", "Ceinture de sécurité présente et en bon état", "Contrepoids en place et solidement fixé", "Plaque de charge lisible — capacité maximale indiquée", "Aucune fuite — carburant, huile, hydraulique", "Extincteur présent et accessible", "Bouton d'arrêt d'urgence fonctionnel"];
+var ELING   = ["Aucune déformation, torsion ou noeud sur l'élingue", "Aucune coupure, entaille ou abrasion sur les fibres ou brins", "Aucune corrosion, rouille excessive ou piqûres", "Crochets de sécurité fonctionnels et non déformés", "Manilles — axe fileté serré et sécurisé", "Plaque d'identification et capacité lisible et présente", "Aucun allongement anormal des maillons — chaîne", "Cosses en bon état aux extrémités des câbles", "Sangles textiles — aucune brûlure ou dégradation", "Anneau de levage en bon état — non déformé", "Capacité de charge adaptée à la charge prévue", "Stockage adéquat après utilisation — suspendu, propre, sec"];
+var ECHAF   = ["Montants verticaux en bon état — aucune déformation ni corrosion", "Plaques de base et madriers d'appui stables — terrain nivelé", "Ancrages et haubans en place selon les exigences", "Traverses horizontales en bon état et bien fixées", "Planchers complets — aucun espace excessif entre les planches", "Planches fixées — ne basculent pas et ne glissent pas", "Garde-corps supérieur 900-1070 mm sur tous les côtés exposés", "Lisse intermédiaire mi-hauteur présente", "Plinthe garde-pied de 150 mm en place", "Accès sécuritaire — échelle ou escalier en bon état", "Aucun outil ou matériau non fixé sur la plateforme", "Roues si mobile — verrous bloqués en position travail", "Filet de protection si risque de chute d'objets", "Capacité de charge affichée — aucune surcharge"];
+var AUTRE   = ["État général de l'équipement satisfaisant", "Dispositifs de sécurité fonctionnels", "Aucune fuite ou défectuosité visible", "Plaque d'identification et capacité lisible"];
+var ITEMS_DATA = [VIS.concat(MARCH), CHARIOT, ELING, ECHAF, AUTRE];
+
+var S = {};
+var CNT = [0,0,0,0,0];
+var INIT_DONE = false;
+
+function cid(eq,i,j){ return "c"+eq+"_"+i+"_"+j; }
+
+// Construire une table
+function buildTable(tableId, eq, items) {
+  var tbody = document.querySelector("#"+tableId+" tbody");
+  if (!tbody) return;
+  items.forEach(function(label) {
+    var ri = CNT[eq]++;
+    var tr = document.createElement("tr");
+    // Label
+    var tdL = document.createElement("td");
+    tdL.className = "td-lbl";
+    tdL.textContent = label;
+    tr.appendChild(tdL);
+    // 5 cases L M M J V
+    for (var j=0; j<5; j++) {
+      var id = cid(eq,ri,j);
+      S[id] = "";
+      var td = document.createElement("td");
+      td.className = "td-chk";
+      var btn = mkChk(id);
+      td.appendChild(btn);
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  });
+}
+
+function mkChk(id) {
+  var b = document.createElement("button");
+  b.type = "button";
+  b.id = id;
+  b.className = "chk";
+  b.textContent = "";
+  b.onclick = function(){ toggle(id); };
+  return b;
+}
+
+// 2 états : vide → ✅ → ❌ → vide
+function toggle(id) {
+  var s = S[id];
+  var next = s===""?"ok": s==="ok"?"nok": "";
+  S[id] = next;
+  var b = document.getElementById(id);
+  b.className = "chk"+(next?" "+next:"");
+  b.textContent = next==="ok"?"✅": next==="nok"?"❌": "";
+  updateCounts();
+  updateNonConf();
+}
+
+function updateCounts() {
+  for (var eq=0; eq<5; eq++) {
+    var ok=0, nok=0;
+    Object.keys(S).forEach(function(k){
+      if(!k.startsWith("c"+eq+"_")) return;
+      if(S[k]==="ok") ok++;
+      else if(S[k]==="nok") nok++;
+    });
+    var eok=document.getElementById("e"+eq+"_ok");
+    var enok=document.getElementById("e"+eq+"_nok");
+    if(eok)  eok.textContent  = "✅ "+ok+" OK";
+    if(enok) enok.textContent = "❌ "+nok+" NOK";
+  }
+}
+
+function updateNonConf() {
+  for (var eq=0; eq<5; eq++) {
+    var hasNok = Object.keys(S).some(function(k){
+      return k.startsWith("c"+eq+"_") && S[k]==="nok";
+    });
+    var nc = document.getElementById("nc"+eq);
+    if(nc) nc.classList.toggle("show", hasNok);
+  }
+}
+
+function ajouterPoint(eq) {
+  var label = prompt("Nom du point d'inspection :");
+  if (!label||!label.trim()) return;
+  var tbody = document.querySelector("#t"+eq+" tbody");
+  if (!tbody) return;
+  var ri = CNT[eq]++;
+  var tr = document.createElement("tr");
+  var tdL = document.createElement("td"); tdL.className="td-lbl"; tdL.textContent=label.trim();
+  tr.appendChild(tdL);
+  for(var j=0;j<5;j++){
+    var id=cid(eq,ri,j); S[id]="";
+    var td=document.createElement("td"); td.className="td-chk";
+    td.appendChild(mkChk(id)); tr.appendChild(td);
+  }
+  tbody.appendChild(tr);
+  updateCounts();
+}
+
+// Navigation
+function showEq(n) {
+  document.querySelectorAll(".eq-panel").forEach(function(p){ p.classList.remove("active"); });
+  document.querySelectorAll(".tab").forEach(function(t){ t.classList.remove("active"); });
+  document.getElementById("eq"+n).classList.add("active");
+  document.querySelectorAll(".tab")[n].classList.add("active");
+  document.getElementById("alertOk").classList.remove("show");
+  document.getElementById("alertErr").classList.remove("show");
+  window.scrollTo(0,0);
+}
+
+// Signature
+var sCtx={}, sOn={};
+function initSig(id) {
+  var c=document.getElementById(id);
+  if(!c) return;
+  var dpr=window.devicePixelRatio||1;
+  c.width=c.offsetWidth*dpr; c.height=110*dpr; c.style.height="110px";
+  var ctx=c.getContext("2d");
+  ctx.scale(dpr,dpr); ctx.strokeStyle="#1a1d23"; ctx.lineWidth=2; ctx.lineCap="round";
+  sCtx[id]=ctx; sOn[id]=false;
+  function pos(e){var r=c.getBoundingClientRect(),s=e.touches?e.touches[0]:e;return{x:s.clientX-r.left,y:s.clientY-r.top};}
+  c.addEventListener("mousedown",  function(e){sOn[id]=true;var p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);e.preventDefault();});
+  c.addEventListener("mousemove",  function(e){if(!sOn[id])return;var p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();e.preventDefault();});
+  c.addEventListener("mouseup",    function(){sOn[id]=false;});
+  c.addEventListener("touchstart", function(e){sOn[id]=true;var p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);e.preventDefault();},{passive:false});
+  c.addEventListener("touchmove",  function(e){if(!sOn[id])return;var p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();e.preventDefault();},{passive:false});
+  c.addEventListener("touchend",   function(){sOn[id]=false;});
+}
+function clearSig(id){var c=document.getElementById(id);if(c&&sCtx[id])sCtx[id].clearRect(0,0,c.offsetWidth,110);}
+
+// Formspree
+var APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbxOy41mCXdxVwiPw0SU0P7dqL48xF5xBIivUNc07dAMbpmRuiu6Tn-4yOK-zt7LhhmZFg/exec";
+
+function soumettre(eq) {
+  var du  = document.getElementById("e"+eq+"_du").value;
+  var trav= document.getElementById("e"+eq+"_trav").value;
+  var st  = document.getElementById("e"+eq+"_st").value;
+  if(!du||!trav||!st){ showToast("Remplissez la date, le travailleur et le sous-traitant"); return; }
+
+  var ok=0,nok=0,noks=[];
+  var items=ITEMS_DATA[eq]||[];
+  Object.keys(S).forEach(function(k){
+    if(!k.startsWith("c"+eq+"_")) return;
+    if(S[k]==="ok") ok++;
+    else if(S[k]==="nok"){
+      nok++;
+      var parts=k.split("_"); var ri=parseInt(parts[2]);
+      var lbl=items[ri]||("Item "+(ri+1));
+      if(noks.indexOf(lbl)<0) noks.push(lbl);
+    }
+  });
+
+  var nc  = document.getElementById("e"+eq+"_nc")  ? document.getElementById("e"+eq+"_nc").value  :"";
+  var hs  = document.getElementById("e"+eq+"_hs")  ? document.getElementById("e"+eq+"_hs").value  :"non";
+  var sup = document.getElementById("e"+eq+"_sup") ? document.getElementById("e"+eq+"_sup").value :"";
+  var ini = [0,1,2,3,4].map(function(j){var el=document.getElementById("e"+eq+"_i"+j);return el?el.value:""; }).join(" | ");
+  var statut = nok>0?"NON CONFORME":"CONFORME";
+
+  var entry={date:du,eq:EQ[eq],trav:trav,st:st,ok:ok,nok:nok,statut:statut,noks:noks,hs:hs,ts:new Date().toISOString()};
+  var hist=[];
+  try{hist=JSON.parse(localStorage.getItem("insp3")||"[]");}catch(e){}
+  hist.unshift(entry); hist=hist.slice(0,50);
+  try{localStorage.setItem("insp3",JSON.stringify(hist));}catch(e){}
+  renderHist();
+
+  var btn=document.querySelector("#eq"+eq+" .btn-sub");
+  if(btn){btn.disabled=true;btn.textContent="Envoi en cours...";}
+
+  var corps="INSPECTION: "+EQ[eq]+"\nDate: "+du+"\nTravailleur: "+trav+" ("+st+")\nStatut: "+statut+"\nOK: "+ok+" | NOK: "+nok;
+  if(noks.length) corps+="\n\nNon-conformités:\n"+noks.map(function(l){return"- "+l;}).join("\n");
+  if(nc)  corps+="\n\nDescription: "+nc;
+  if(hs==="oui") corps+="\nEQUIPEMENT HORS SERVICE";
+  if(sup) corps+="\nSuperviseur: "+sup;
+  if(ini) corps+="\nInitiales: "+ini;
+
+  
+  // Envoyer vers Google Sheets
+  var gsPayload = {
+    type_soumission: "inspection",
+    date: du,
+    semainedu: du,
+    semaineau: document.getElementById("e"+eq+"_au") ? document.getElementById("e"+eq+"_au").value : "",
+    equipement: EQ[eq],
+    travailleur: trav,
+    sousTraitant: st,
+    marqueModele: (document.getElementById("e"+eq+"_marque") ? document.getElementById("e"+eq+"_marque").value : "") + " " + (document.getElementById("e"+eq+"_modele") ? document.getElementById("e"+eq+"_modele").value : ""),
+    ok: ok, nok: nok, na: na,
+    nonConformites: noks.join("; "),
+    description: nc,
+    horsService: hs,
+    superviseur: sup,
+    initiales: ini
+  };
+  try {
+    fetch(APPS_SCRIPT, {method:"POST", mode:"no-cors", headers:{"Content-Type":"application/json"}, body:JSON.stringify(gsPayload)});
+  } catch(e) { console.log("Apps Script inspection:", e); }
+
+fetch(APPS_SCRIPT, {
+    method: "POST",
+    mode: "no-cors",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(payload)
+  }).then(function() {
+    if(btn) { btn.disabled=false; btn.textContent="Soumettre"; }
+    document.getElementById("alertOk").classList.add("show");
+    window.scrollTo(0,0);
+  }).catch(function() {
+    if(btn) { btn.disabled=false; btn.textContent="Soumettre"; }
+    document.getElementById("alertOk").classList.add("show");
+    window.scrollTo(0,0);
+  });
+}
+
+function renderHist(){
+  var hist=[];
+  try{hist=JSON.parse(localStorage.getItem("insp3")||"[]");}catch(e){}
+  var el=document.getElementById("historique");
+  if(!hist.length){el.innerHTML="<p style='font-size:12px;color:#888;'>Aucune inspection soumise.</p>";return;}
+  el.innerHTML=hist.slice(0,10).map(function(h){
+    var c=h.nok>0?"var(--rouge)":"#27ae60";
+    var icon=h.nok>0?"❌":"✅";
+    return "<div class='hist-item'><div class='hist-top'>"
+      +"<div><div class='hist-date'>"+h.date+" — "+h.eq+"</div>"
+      +"<div style='font-size:11px;color:#888;'>"+h.trav+" · "+h.st+"</div></div>"
+      +"<div style='font-size:12px;font-weight:700;color:"+c+";'>"+icon+" "+h.statut+"</div>"
+      +"</div><div class='hist-det'>✅ "+h.ok+" OK  ❌ "+h.nok+" NOK"
+      +(h.hs==="oui"?" · <strong style='color:var(--rouge);'>HORS SERVICE</strong>":"")
+      +"</div></div>";
+  }).join("");
+}
+
+function showToast(msg){
+  var t=document.getElementById("toast");
+  t.textContent=msg; t.classList.add("show");
+  setTimeout(function(){t.classList.remove("show");},3000);
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+  if(INIT_DONE) return; INIT_DONE=true;
+  var now=new Date(), day=now.getDay(), diff=day===0?-6:1-day;
+  var lun=new Date(now); lun.setDate(now.getDate()+diff);
+  var ven=new Date(lun); ven.setDate(lun.getDate()+4);
+  var fmt=function(d){return d.toISOString().split("T")[0];};
+  [0,1,2,3,4].forEach(function(eq){
+    var du=document.getElementById("e"+eq+"_du");
+    var au=document.getElementById("e"+eq+"_au");
+    if(du) du.value=fmt(lun);
+    if(au) au.value=fmt(ven);
+  });
+  buildTable("t0_vis",   0, VIS);
+  buildTable("t0_march", 0, MARCH);
+  buildTable("t1", 1, CHARIOT);
+  buildTable("t2", 2, ELING);
+  buildTable("t3", 3, ECHAF);
+  buildTable("t4", 4, AUTRE);
+  ["e0_sig","e1_sig","e2_sig","e3_sig","e4_sig"].forEach(initSig);
+  renderHist();
+  updateCounts();
+});
+</script>
+</body>
+</html>
