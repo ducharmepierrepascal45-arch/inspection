@@ -736,58 +736,60 @@ function clearSig(id){var c=document.getElementById(id);if(c&&sCtx[id])sCtx[id].
 var APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbxOy41mCXdxVwiPw0SU0P7dqL48xF5xBIivUNc07dAMbpmRuiu6Tn-4yOK-zt7LhhmZFg/exec";
 
 function soumettre(eq) {
-  var du  = document.getElementById("e"+eq+"_du").value;
-  var trav= document.getElementById("e"+eq+"_trav").value;
-  var st  = document.getElementById("e"+eq+"_st").value;
+  var du   = document.getElementById("e"+eq+"_du").value;
+  var trav = document.getElementById("e"+eq+"_trav").value;
+  var st   = document.getElementById("e"+eq+"_st").value;
   if(!du||!trav||!st){ showToast("Remplissez la date, le travailleur et le sous-traitant"); return; }
 
-  var ok=0,nok=0,noks=[];
-  var items=ITEMS_DATA[eq]||[];
+  var ok=0,nok=0,na=0,noks=[];
+  var items = ITEMS_DATA[eq]||[];
   Object.keys(S).forEach(function(k){
     if(!k.startsWith("c"+eq+"_")) return;
     if(S[k]==="ok") ok++;
-    else if(S[k]==="nok"){
-      nok++;
-      var parts=k.split("_"); var ri=parseInt(parts[2]);
-      var lbl=items[ri]||("Item "+(ri+1));
-      if(noks.indexOf(lbl)<0) noks.push(lbl);
-    }
+    else if(S[k]==="nok"){ nok++; }
+    else if(S[k]==="na") na++;
   });
 
-  var nc  = document.getElementById("e"+eq+"_nc")  ? document.getElementById("e"+eq+"_nc").value  :"";
-  var hs  = document.getElementById("e"+eq+"_hs")  ? document.getElementById("e"+eq+"_hs").value  :"non";
-  var sup = document.getElementById("e"+eq+"_sup") ? document.getElementById("e"+eq+"_sup").value :"";
-  var ini = [0,1,2,3,4].map(function(j){var el=document.getElementById("e"+eq+"_i"+j);return el?el.value:""; }).join(" | ");
+  Object.keys(S).forEach(function(k){
+    if(!k.startsWith("c"+eq+"_")||S[k]!=="nok") return;
+    var parts=k.split("_"); var ri=parseInt(parts[2]);
+    var lbl=items[ri]||("Item "+(ri+1));
+    if(noks.indexOf(lbl)<0) noks.push(lbl);
+  });
+
+  var nc  = document.getElementById("e"+eq+"_nc")  ? document.getElementById("e"+eq+"_nc").value  : "";
+  var hs  = document.getElementById("e"+eq+"_hs")  ? document.getElementById("e"+eq+"_hs").value  : "non";
+  var sup = document.getElementById("e"+eq+"_sup") ? document.getElementById("e"+eq+"_sup").value : "";
+  var au  = document.getElementById("e"+eq+"_au")  ? document.getElementById("e"+eq+"_au").value  : "";
+  var marque = document.getElementById("e"+eq+"_marque") ? document.getElementById("e"+eq+"_marque").value : "";
+  var modele = document.getElementById("e"+eq+"_modele") ? document.getElementById("e"+eq+"_modele").value : "";
+  var ini = [0,1,2,3,4].map(function(j){
+    var el=document.getElementById("e"+eq+"_i"+j); return el?el.value:"";
+  }).join(" | ");
+
   var statut = nok>0?"NON CONFORME":"CONFORME";
 
-  var entry={date:du,eq:EQ[eq],trav:trav,st:st,ok:ok,nok:nok,statut:statut,noks:noks,hs:hs,ts:new Date().toISOString()};
+  // Sauvegarde locale
+  var entry={date:du,eq:EQ[eq],trav:trav,st:st,ok:ok,nok:nok,na:na,statut:statut,noks:noks,hs:hs,ts:new Date().toISOString()};
   var hist=[];
-  try{hist=JSON.parse(localStorage.getItem("insp3")||"[]");}catch(e){}
+  try{hist=JSON.parse(localStorage.getItem("insp2")||"[]");}catch(e){}
   hist.unshift(entry); hist=hist.slice(0,50);
-  try{localStorage.setItem("insp3",JSON.stringify(hist));}catch(e){}
+  try{localStorage.setItem("insp2",JSON.stringify(hist));}catch(e){}
   renderHist();
 
-  var btn=document.querySelector("#eq"+eq+" .btn-sub");
-  if(btn){btn.disabled=true;btn.textContent="Envoi en cours...";}
+  var btn = document.querySelector("#eq"+eq+" .btn-soumettre");
+  if(btn){ btn.disabled=true; btn.textContent="Envoi en cours..."; }
 
-  var corps="INSPECTION: "+EQ[eq]+"\nDate: "+du+"\nTravailleur: "+trav+" ("+st+")\nStatut: "+statut+"\nOK: "+ok+" | NOK: "+nok;
-  if(noks.length) corps+="\n\nNon-conformités:\n"+noks.map(function(l){return"- "+l;}).join("\n");
-  if(nc)  corps+="\n\nDescription: "+nc;
-  if(hs==="oui") corps+="\nEQUIPEMENT HORS SERVICE";
-  if(sup) corps+="\nSuperviseur: "+sup;
-  if(ini) corps+="\nInitiales: "+ini;
-
-  
-  // Envoyer vers Google Sheets
-  var gsPayload = {
+  // Payload complet
+  var payload = {
     type_soumission: "inspection",
     date: du,
     semainedu: du,
-    semaineau: document.getElementById("e"+eq+"_au") ? document.getElementById("e"+eq+"_au").value : "",
+    semaineau: au,
     equipement: EQ[eq],
     travailleur: trav,
     sousTraitant: st,
-    marqueModele: (document.getElementById("e"+eq+"_marque") ? document.getElementById("e"+eq+"_marque").value : "") + " " + (document.getElementById("e"+eq+"_modele") ? document.getElementById("e"+eq+"_modele").value : ""),
+    marqueModele: marque+" "+modele,
     ok: ok, nok: nok, na: na,
     nonConformites: noks.join("; "),
     description: nc,
@@ -795,68 +797,51 @@ function soumettre(eq) {
     superviseur: sup,
     initiales: ini
   };
+
+  // Envoyer vers Apps Script — no-cors
   try {
-    fetch(APPS_SCRIPT, {method:"POST", mode:"no-cors", headers:{"Content-Type":"application/json"}, body:JSON.stringify(gsPayload)});
-  } catch(e) { console.log("Apps Script inspection:", e); }
+    fetch("https://script.google.com/macros/s/AKfycbxOy41mCXdxVwiPw0SU0P7dqL48xF5xBIivUNc07dAMbpmRuiu6Tn-4yOK-zt7LhhmZFg/exec", {
+      method: "POST",
+      mode: "no-cors",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload)
+    });
+  } catch(e) { console.log("Apps Script:", e); }
 
-fetch(APPS_SCRIPT, {
-    method: "POST",
-    mode: "no-cors",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify(payload)
-  }).then(function() {
-    if(btn) { btn.disabled=false; btn.textContent="Soumettre"; }
+  // Afficher succès après 1.5 sec — no-cors ne retourne pas de réponse
+  setTimeout(function() {
+    if(btn){ btn.disabled=false; btn.textContent="Soumettre l'inspection"; }
     document.getElementById("alertOk").classList.add("show");
     window.scrollTo(0,0);
-  }).catch(function() {
-    if(btn) { btn.disabled=false; btn.textContent="Soumettre"; }
-    document.getElementById("alertOk").classList.add("show");
-    window.scrollTo(0,0);
+  }, 1500);
+}
+
+
+document.addEventListener("DOMContentLoaded", function() {
+  if (INIT_DONE) return;
+  INIT_DONE = true;
+
+  var now = new Date();
+  var day = now.getDay();
+  var diff = day===0 ? -6 : 1-day;
+  var lun = new Date(now); lun.setDate(now.getDate()+diff);
+  var ven = new Date(lun); ven.setDate(lun.getDate()+4);
+  var fmt = function(d){ return d.toISOString().split("T")[0]; };
+
+  [0,1,2,3,4].forEach(function(eq) {
+    var du = document.getElementById("e"+eq+"_du");
+    var au = document.getElementById("e"+eq+"_au");
+    if(du) du.value = fmt(lun);
+    if(au) au.value = fmt(ven);
   });
-}
 
-function renderHist(){
-  var hist=[];
-  try{hist=JSON.parse(localStorage.getItem("insp3")||"[]");}catch(e){}
-  var el=document.getElementById("historique");
-  if(!hist.length){el.innerHTML="<p style='font-size:12px;color:#888;'>Aucune inspection soumise.</p>";return;}
-  el.innerHTML=hist.slice(0,10).map(function(h){
-    var c=h.nok>0?"var(--rouge)":"#27ae60";
-    var icon=h.nok>0?"❌":"✅";
-    return "<div class='hist-item'><div class='hist-top'>"
-      +"<div><div class='hist-date'>"+h.date+" — "+h.eq+"</div>"
-      +"<div style='font-size:11px;color:#888;'>"+h.trav+" · "+h.st+"</div></div>"
-      +"<div style='font-size:12px;font-weight:700;color:"+c+";'>"+icon+" "+h.statut+"</div>"
-      +"</div><div class='hist-det'>✅ "+h.ok+" OK  ❌ "+h.nok+" NOK"
-      +(h.hs==="oui"?" · <strong style='color:var(--rouge);'>HORS SERVICE</strong>":"")
-      +"</div></div>";
-  }).join("");
-}
-
-function showToast(msg){
-  var t=document.getElementById("toast");
-  t.textContent=msg; t.classList.add("show");
-  setTimeout(function(){t.classList.remove("show");},3000);
-}
-
-document.addEventListener("DOMContentLoaded", function(){
-  if(INIT_DONE) return; INIT_DONE=true;
-  var now=new Date(), day=now.getDay(), diff=day===0?-6:1-day;
-  var lun=new Date(now); lun.setDate(now.getDate()+diff);
-  var ven=new Date(lun); ven.setDate(lun.getDate()+4);
-  var fmt=function(d){return d.toISOString().split("T")[0];};
-  [0,1,2,3,4].forEach(function(eq){
-    var du=document.getElementById("e"+eq+"_du");
-    var au=document.getElementById("e"+eq+"_au");
-    if(du) du.value=fmt(lun);
-    if(au) au.value=fmt(ven);
-  });
   buildTable("t0_vis",   0, VIS);
   buildTable("t0_march", 0, MARCH);
   buildTable("t1", 1, CHARIOT);
   buildTable("t2", 2, ELING);
   buildTable("t3", 3, ECHAF);
   buildTable("t4", 4, AUTRE);
+
   ["e0_sig","e1_sig","e2_sig","e3_sig","e4_sig"].forEach(initSig);
   renderHist();
   updateCounts();
